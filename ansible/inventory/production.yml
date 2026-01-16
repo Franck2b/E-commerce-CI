@@ -16,7 +16,7 @@ all:
     # Variables globales
     app_name: tolus-ecommerce
     app_port: 3000
-    app_user: "{{ ansible_user }}"
-    app_group: "{{ ansible_user }}"
-    deploy_dir: "/home/{{ ansible_user }}/tolus-ecommerce"
+    app_user: www-data
+    app_group: www-data
+    deploy_dir: /var/www/tolus-ecommerce
     node_version: "20"
