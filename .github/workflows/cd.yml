@@ -51,7 +51,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install ansible
 
-      # 7. Configuration SSH simplifiée
+      # 7. Configuration SSH
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
@@ -59,16 +59,34 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           chmod 700 ~/.ssh
           
-      # 8. Test de connexion SSH
-      - name: Test SSH Connection
+      # 8. Diagnostic de connectivité réseau
+      - name: Network Diagnostic
+        continue-on-error: true
         run: |
-          ssh -o StrictHostKeyChecking=no \
+          echo "🔍 Test de connectivité réseau vers ${{ secrets.SERVER_HOST }}"
+          echo "---"
+          echo "📍 Test ICMP (ping) :"
+          ping -c 3 ${{ secrets.SERVER_HOST }} || echo "⚠️ Ping échoué (peut être normal si ICMP est bloqué)"
+          echo ""
+          echo "📍 Test du port SSH (22) :"
+          timeout 10 bash -c "cat < /dev/null > /dev/tcp/${{ secrets.SERVER_HOST }}/22 && echo '✅ Port 22 ouvert'" || echo "❌ Port 22 fermé ou filtré"
+          echo ""
+          echo "📍 Résolution DNS :"
+          nslookup ${{ secrets.SERVER_HOST }} || host ${{ secrets.SERVER_HOST }}
+          
+      # 9. Test de connexion SSH
+      - name: Test SSH Connection
+        continue-on-error: true
+        run: |
+          echo "🔐 Test de connexion SSH..."
+          ssh -vvv \
+              -o StrictHostKeyChecking=no \
               -o UserKnownHostsFile=/dev/null \
-              -o ConnectTimeout=10 \
+              -o ConnectTimeout=30 \
               ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
-              "echo 'SSH Connection OK'"
+              "echo '✅ SSH Connection OK'"
 
-      # 9. Exécution du playbook Ansible
+      # 10. Exécution du playbook Ansible (méthode la plus fiable)
       - name: Run Ansible Deployment
         env:
           ANSIBLE_HOST_KEY_CHECKING: 'False'
@@ -78,15 +96,16 @@ jobs:
             --extra-vars "deploy_version=${{ github.ref_name }}" \
             --extra-vars "ansible_user=${{ secrets.SERVER_USER }}" \
             --extra-vars "ansible_host=${{ secrets.SERVER_HOST }}" \
-            -v
+            --timeout 60 \
+            -vvv
 
-      # 10. Nettoyage de la clé SSH
+      # 11. Nettoyage de la clé SSH
       - name: Cleanup SSH Key
         if: always()
         run: |
           rm -f ~/.ssh/id_rsa
           
-      # 11. Notification de succès
+      # 12. Notification de succès
       - name: Deployment Success
         if: success()
         run: |
