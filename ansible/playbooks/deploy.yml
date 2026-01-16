@@ -61,12 +61,26 @@
       tags: [setup]
 
     # 4. Déploiement du code via Git
-    - name: Clone or update repository
+    - name: Remove old deployment directory content
+      file:
+        path: "{{ deploy_dir }}"
+        state: absent
+      tags: [deploy]
+
+    - name: Recreate deployment directory
+      file:
+        path: "{{ deploy_dir }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: '0755'
+      tags: [deploy]
+
+    - name: Clone repository
       git:
         repo: 'https://github.com/Franck2b/E-commerce-CI.git'
         dest: "{{ deploy_dir }}"
         version: main
-        force: yes
       become_user: "{{ app_user }}"
       tags: [deploy]
 
