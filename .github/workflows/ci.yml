@@ -1,3 +1,7 @@
+# Pipeline CI - Continuous Integration
+# Exécutée sur chaque PR vers develop/main et push sur develop
+# Étapes : checkout, setup, install, lint, tests unitaires, tests intégration, build
+
 name: CI - Continuous Integration
 
 # Déclencheurs : PR vers develop ou main

@@ -1,3 +1,8 @@
+/**
+ * Données produits pour l'application e-commerce TOLUS
+ * 10 produits mock avec toutes les propriétés nécessaires
+ */
+
 export interface Product {
   id: number;
   name: string;
