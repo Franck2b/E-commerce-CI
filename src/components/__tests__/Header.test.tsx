@@ -1,3 +1,8 @@
+/**
+ * Tests unitaires du composant Header
+ * Vérifie : logo, navigation, bannière promotionnelle
+ */
+
 import { render, screen } from '@testing-library/react';
 import Header from '../Header';
 
