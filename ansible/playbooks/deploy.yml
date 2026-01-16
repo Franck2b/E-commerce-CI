@@ -1,5 +1,5 @@
 ---
-# Playbook de déploiement principal
+# Playbook de deploiement principal
 # Stratégie : Déploiement complet de l'application Next.js
 
 - name: Deploy TOLUS E-commerce Application
