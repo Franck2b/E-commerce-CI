@@ -51,15 +51,14 @@ jobs:
 
       # 7. Configuration de la clé SSH
       - name: Setup SSH Key
-        uses: shimataro/ssh-key-action@v2
-        with:
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          known_hosts: 'placeholder'
-          
-      - name: Add server to known hosts
-        env:
-          SERVER_HOST: ${{ secrets.SERVER_HOST }}
-        run: ssh-keyscan -H $SERVER_HOST >> ~/.ssh/known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          cat <<'EOF' > ~/.ssh/id_rsa
+          ${{ secrets.SSH_PRIVATE_KEY }}
+          EOF
+          chmod 600 ~/.ssh/id_rsa
+          chmod 700 ~/.ssh
+          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
           
       # 7b. Test de connexion SSH
       - name: Test SSH Connection
