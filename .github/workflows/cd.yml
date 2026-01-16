@@ -49,22 +49,24 @@ jobs:
           python -m pip install --upgrade pip
           pip install ansible
 
-      # 7. Configuration de la clé SSH
+      # 7. Configuration de la clé SSH avec webfactory/ssh-agent
       - name: Setup SSH Key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          
+      # 7b. Ajouter le serveur aux known_hosts
+      - name: Add server to known hosts
         run: |
-          mkdir -p ~/.ssh
-          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          chmod 700 ~/.ssh
           ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
           
-      # 7b. Test de connexion SSH
+      # 7c. Test de connexion SSH
       - name: Test SSH Connection
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
         run: |
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${SERVER_USER}@${SERVER_HOST} "echo 'SSH Connection OK'"
+          ssh -o StrictHostKeyChecking=no ${SERVER_USER}@${SERVER_HOST} "echo 'SSH Connection OK'"
 
       # 8. Exécution du playbook Ansible
       - name: Run Ansible Deployment
