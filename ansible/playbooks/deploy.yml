@@ -96,10 +96,12 @@
       tags: [deploy]
 
     - name: Install Node.js dependencies
-      command: npm ci --production
+      command: npm ci --omit=dev --prefer-offline --no-audit
       args:
         chdir: "{{ deploy_dir }}"
       become_user: "{{ app_user }}"
+      async: 300
+      poll: 5
       tags: [deploy]
 
     # 6. Build de l'application
