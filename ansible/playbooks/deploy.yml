@@ -1,5 +1,5 @@
 ---
-# Playbook de deploiement principal
+# Playbook de déploiement principal - Version simplifiée et robuste
 # Stratégie : Déploiement complet de l'application Next.js
 
 - name: Deploy TOLUS E-commerce Application
@@ -25,6 +25,7 @@
           - build-essential
           - nginx
           - rsync
+          - acl
         state: present
       tags: [setup]
 
@@ -43,7 +44,16 @@
       when: node_check.failed
       tags: [nodejs]
 
-    # 3. Création du répertoire de déploiement
+    # 3. Création de l'utilisateur avec home directory
+    - name: Create application user with home directory
+      user:
+        name: "{{ app_user }}"
+        system: yes
+        create_home: yes
+        home: /var/www
+        shell: /bin/bash
+      tags: [setup]
+
     - name: Create deployment directory
       file:
         path: "{{ deploy_dir }}"
@@ -54,22 +64,35 @@
       tags: [setup]
 
     # 4. Déploiement du code via Git
-    - name: Clone or update repository
+    - name: Remove old deployment directory content
+      file:
+        path: "{{ deploy_dir }}"
+        state: absent
+      tags: [deploy]
+
+    - name: Recreate deployment directory
+      file:
+        path: "{{ deploy_dir }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: '0755'
+      tags: [deploy]
+
+    - name: Clone repository
       git:
         repo: 'https://github.com/Franck2b/E-commerce-CI.git'
         dest: "{{ deploy_dir }}"
         version: main
-        force: yes
-        update: yes
       tags: [deploy]
 
-    # 5. Installation des dépendances
+    # 5. Installation des dépendances (en root, plus simple)
     - name: Install Node.js dependencies
       command: npm ci --omit=dev --prefer-offline --no-audit
       args:
         chdir: "{{ deploy_dir }}"
-      async: 300
-      poll: 5
+      environment:
+        HOME: /root
       tags: [deploy]
 
     # 6. Build de l'application
@@ -79,9 +102,19 @@
         chdir: "{{ deploy_dir }}"
       environment:
         NODE_ENV: production
+        HOME: /root
       tags: [deploy]
 
-    # 7. Configuration de PM2 pour la gestion du processus
+    # 7. Fixer les permissions après build
+    - name: Set correct ownership for all files
+      file:
+        path: "{{ deploy_dir }}"
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        recurse: yes
+      tags: [deploy]
+
+    # 8. Configuration de PM2 pour la gestion du processus
     - name: Install PM2 globally
       npm:
         name: pm2
@@ -103,7 +136,9 @@
               env: {
                 NODE_ENV: 'production',
                 PORT: {{ app_port }}
-              }
+              },
+              error_file: '/var/log/pm2/{{ app_name }}-error.log',
+              out_file: '/var/log/pm2/{{ app_name }}-out.log'
             }]
           }
         dest: "{{ deploy_dir }}/ecosystem.config.js"
@@ -111,31 +146,43 @@
         group: "{{ app_group }}"
       tags: [pm2]
 
-    - name: Start or reload application with PM2
-      command: pm2 startOrReload ecosystem.config.js --update-env
+    - name: Create PM2 log directory
+      file:
+        path: /var/log/pm2
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: '0755'
+      tags: [pm2]
+
+    - name: Stop PM2 if running
+      command: pm2 delete {{ app_name }}
+      ignore_errors: yes
+      tags: [pm2, restart]
+
+    - name: Start application with PM2 as root
+      command: pm2 start ecosystem.config.js --update-env
       args:
         chdir: "{{ deploy_dir }}"
+      environment:
+        HOME: /root
       tags: [pm2, restart]
 
     - name: Save PM2 configuration
       command: pm2 save
+      environment:
+        HOME: /root
       tags: [pm2]
 
     - name: Setup PM2 startup script
-      shell: env PATH=$PATH:/usr/bin pm2 startup systemd -u {{ ansible_user }} --hp /home/{{ ansible_user }} | tail -1
-      register: pm2_startup_command
-      changed_when: false
-      become: yes
-      tags: [pm2]
-      
-    - name: Execute PM2 startup command
-      shell: "{{ pm2_startup_command.stdout }}"
-      when: pm2_startup_command.stdout != ""
-      become: yes
-      ignore_errors: yes
+      shell: |
+        pm2 startup systemd -u root --hp /root
+        pm2 save
+      environment:
+        HOME: /root
       tags: [pm2]
 
-    # 8. Configuration de Nginx
+    # 9. Configuration de Nginx
     - name: Configure Nginx reverse proxy
       copy:
         content: |
@@ -177,13 +224,35 @@
       command: nginx -t
       tags: [nginx]
 
-    # 9. Vérification du déploiement
+    - name: Reload Nginx
+      service:
+        name: nginx
+        state: reloaded
+      tags: [nginx]
+
+    # 10. Vérification du déploiement
+    - name: Wait for application to start
+      wait_for:
+        port: "{{ app_port }}"
+        delay: 5
+        timeout: 60
+      tags: [verify]
+
     - name: Check application health
       uri:
         url: "http://localhost:{{ app_port }}"
         status_code: 200
       retries: 5
       delay: 3
+      tags: [verify]
+
+    - name: Display deployment info
+      debug:
+        msg: |
+          ✅ Déploiement réussi !
+          📦 Version: {{ deploy_version }}
+          🌐 Application accessible sur le port {{ app_port }}
+          📁 Dossier: {{ deploy_dir }}
       tags: [verify]
 
   handlers:
