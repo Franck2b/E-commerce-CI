@@ -85,6 +85,16 @@
       tags: [deploy]
 
     # 5. Installation des dépendances
+    - name: Fix npm cache permissions
+      file:
+        path: /var/www/.npm
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        recurse: yes
+      ignore_errors: yes
+      tags: [deploy]
+
     - name: Install Node.js dependencies
       command: npm ci --production
       args:
