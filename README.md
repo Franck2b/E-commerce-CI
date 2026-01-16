@@ -10,7 +10,7 @@
 
 Application e-commerce frontend développée avec **Next.js 14**, mettant en place une chaîne **CI/CD complète** orchestrée avec **GitHub Actions** et **Ansible** selon le modèle **GitFlow**.
 
-**Projet réalisé par** : [Votre Nom]  
+**Projet réalisé par** : Poletti Franck 
 **Date** : Janvier 2025  
 **Cadre** : Évaluation CI/CD - EEMI
 
