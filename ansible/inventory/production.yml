@@ -16,7 +16,7 @@ all:
     # Variables globales
     app_name: tolus-ecommerce
     app_port: 3000
-    app_user: www-data
-    app_group: www-data
-    deploy_dir: /var/www/tolus-ecommerce
+    app_user: deployer
+    app_group: deployer
+    deploy_dir: /home/deployer/tolus-ecommerce
     node_version: "20"

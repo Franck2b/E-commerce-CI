@@ -47,8 +47,10 @@
     - name: Create application user
       user:
         name: "{{ app_user }}"
-        system: yes
-        create_home: no
+        system: no
+        create_home: yes
+        shell: /bin/bash
+        state: present
       tags: [setup]
 
     - name: Create deployment directory
@@ -61,13 +63,7 @@
       tags: [setup]
 
     # 4. Déploiement du code via Git
-    - name: Remove old deployment directory content
-      file:
-        path: "{{ deploy_dir }}"
-        state: absent
-      tags: [deploy]
-
-    - name: Recreate deployment directory
+    - name: Ensure deployment directory exists
       file:
         path: "{{ deploy_dir }}"
         state: directory
@@ -76,29 +72,23 @@
         mode: '0755'
       tags: [deploy]
 
-    - name: Clone repository
+    - name: Clone or update repository
       git:
         repo: 'https://github.com/Franck2b/E-commerce-CI.git'
         dest: "{{ deploy_dir }}"
         version: main
+        force: yes
+        update: yes
+      become: yes
       become_user: "{{ app_user }}"
       tags: [deploy]
 
     # 5. Installation des dépendances
-    - name: Fix npm cache permissions
-      file:
-        path: /var/www/.npm
-        state: directory
-        owner: "{{ app_user }}"
-        group: "{{ app_group }}"
-        recurse: yes
-      ignore_errors: yes
-      tags: [deploy]
-
     - name: Install Node.js dependencies
       command: npm ci --omit=dev --prefer-offline --no-audit
       args:
         chdir: "{{ deploy_dir }}"
+      become: yes
       become_user: "{{ app_user }}"
       async: 300
       poll: 5
@@ -117,9 +107,11 @@
       command: npm run build
       args:
         chdir: "{{ deploy_dir }}"
+      become: yes
       become_user: "{{ app_user }}"
       environment:
         NODE_ENV: production
+        HOME: "/home/{{ app_user }}"
       tags: [deploy]
 
     # 7. Configuration de PM2 pour la gestion du processus
@@ -156,17 +148,30 @@
       command: pm2 startOrReload ecosystem.config.js --update-env
       args:
         chdir: "{{ deploy_dir }}"
+      become: yes
       become_user: "{{ app_user }}"
+      environment:
+        HOME: "/home/{{ app_user }}"
       tags: [pm2, restart]
 
     - name: Save PM2 configuration
       command: pm2 save
+      become: yes
       become_user: "{{ app_user }}"
+      environment:
+        HOME: "/home/{{ app_user }}"
       tags: [pm2]
 
     - name: Setup PM2 startup script
-      command: pm2 startup systemd -u {{ app_user }} --hp /home/{{ app_user }}
-      register: pm2_startup
+      shell: env PATH=$PATH:/usr/bin pm2 startup systemd -u {{ app_user }} --hp /home/{{ app_user }} | tail -1
+      register: pm2_startup_command
+      changed_when: false
+      tags: [pm2]
+      
+    - name: Execute PM2 startup command
+      shell: "{{ pm2_startup_command.stdout }}"
+      when: pm2_startup_command.stdout != ""
+      ignore_errors: yes
       tags: [pm2]
 
     # 8. Configuration de Nginx
