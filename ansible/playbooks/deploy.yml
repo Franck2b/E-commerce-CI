@@ -1,0 +1,197 @@
+---
+# Playbook de déploiement principal
+# Stratégie : Déploiement complet de l'application Next.js
+
+- name: Deploy TOLUS E-commerce Application
+  hosts: webservers
+  become: yes
+  
+  vars:
+    deploy_version: "{{ deploy_version | default('latest') }}"
+    
+  tasks:
+    # 1. Préparation de l'environnement serveur
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      tags: [setup]
+
+    - name: Install required system packages
+      apt:
+        name:
+          - git
+          - curl
+          - build-essential
+          - nginx
+        state: present
+      tags: [setup]
+
+    # 2. Installation de Node.js
+    - name: Check if Node.js is installed
+      command: node --version
+      register: node_check
+      ignore_errors: yes
+      changed_when: false
+      tags: [nodejs]
+
+    - name: Install Node.js via NodeSource
+      shell: |
+        curl -fsSL https://deb.nodesource.com/setup_{{ node_version }}.x | bash -
+        apt-get install -y nodejs
+      when: node_check.failed
+      tags: [nodejs]
+
+    # 3. Création de l'utilisateur et des dossiers
+    - name: Create application user
+      user:
+        name: "{{ app_user }}"
+        system: yes
+        create_home: no
+      tags: [setup]
+
+    - name: Create deployment directory
+      file:
+        path: "{{ deploy_dir }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: '0755'
+      tags: [setup]
+
+    # 4. Déploiement du code
+    - name: Copy application files
+      synchronize:
+        src: "{{ playbook_dir }}/../../"
+        dest: "{{ deploy_dir }}/"
+        delete: yes
+        recursive: yes
+        rsync_opts:
+          - "--exclude=node_modules"
+          - "--exclude=.next"
+          - "--exclude=.git"
+          - "--exclude=ansible"
+      delegate_to: localhost
+      tags: [deploy]
+
+    # 5. Installation des dépendances
+    - name: Install Node.js dependencies
+      command: npm ci --production
+      args:
+        chdir: "{{ deploy_dir }}"
+      become_user: "{{ app_user }}"
+      tags: [deploy]
+
+    # 6. Build de l'application
+    - name: Build Next.js application
+      command: npm run build
+      args:
+        chdir: "{{ deploy_dir }}"
+      become_user: "{{ app_user }}"
+      environment:
+        NODE_ENV: production
+      tags: [deploy]
+
+    # 7. Configuration de PM2 pour la gestion du processus
+    - name: Install PM2 globally
+      npm:
+        name: pm2
+        global: yes
+        state: present
+      tags: [pm2]
+
+    - name: Create PM2 ecosystem file
+      copy:
+        content: |
+          module.exports = {
+            apps: [{
+              name: '{{ app_name }}',
+              script: 'npm',
+              args: 'start',
+              cwd: '{{ deploy_dir }}',
+              instances: 2,
+              exec_mode: 'cluster',
+              env: {
+                NODE_ENV: 'production',
+                PORT: {{ app_port }}
+              }
+            }]
+          }
+        dest: "{{ deploy_dir }}/ecosystem.config.js"
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+      tags: [pm2]
+
+    - name: Start or reload application with PM2
+      command: pm2 startOrReload ecosystem.config.js --update-env
+      args:
+        chdir: "{{ deploy_dir }}"
+      become_user: "{{ app_user }}"
+      tags: [pm2, restart]
+
+    - name: Save PM2 configuration
+      command: pm2 save
+      become_user: "{{ app_user }}"
+      tags: [pm2]
+
+    - name: Setup PM2 startup script
+      command: pm2 startup systemd -u {{ app_user }} --hp /home/{{ app_user }}
+      register: pm2_startup
+      tags: [pm2]
+
+    # 8. Configuration de Nginx
+    - name: Configure Nginx reverse proxy
+      copy:
+        content: |
+          server {
+              listen 80;
+              server_name _;
+
+              location / {
+                  proxy_pass http://localhost:{{ app_port }};
+                  proxy_http_version 1.1;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection 'upgrade';
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+                  proxy_cache_bypass $http_upgrade;
+              }
+          }
+        dest: /etc/nginx/sites-available/{{ app_name }}
+      tags: [nginx]
+
+    - name: Enable Nginx site
+      file:
+        src: /etc/nginx/sites-available/{{ app_name }}
+        dest: /etc/nginx/sites-enabled/{{ app_name }}
+        state: link
+      notify: Reload Nginx
+      tags: [nginx]
+
+    - name: Remove default Nginx site
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+      notify: Reload Nginx
+      tags: [nginx]
+
+    - name: Test Nginx configuration
+      command: nginx -t
+      tags: [nginx]
+
+    # 9. Vérification du déploiement
+    - name: Check application health
+      uri:
+        url: "http://localhost:{{ app_port }}"
+        status_code: 200
+      retries: 5
+      delay: 3
+      tags: [verify]
+
+  handlers:
+    - name: Reload Nginx
+      service:
+        name: nginx
+        state: reloaded
