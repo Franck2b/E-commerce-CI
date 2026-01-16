@@ -24,6 +24,7 @@
           - curl
           - build-essential
           - nginx
+          - rsync
         state: present
       tags: [setup]
 
