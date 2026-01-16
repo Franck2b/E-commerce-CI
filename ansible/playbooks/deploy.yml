@@ -59,7 +59,16 @@
         mode: '0755'
       tags: [setup]
 
-    # 4. Déploiement du code
+    # 4. Déploiement du code  
+    - name: Set deployment directory permissions
+      file:
+        path: "{{ deploy_dir }}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0755'
+      tags: [deploy]
+
     - name: Copy application files
       synchronize:
         src: "{{ playbook_dir }}/../../"
@@ -72,6 +81,8 @@
           - "--exclude=.git"
           - "--exclude=ansible"
       delegate_to: localhost
+      become: no
+      tags: [deploy]
       tags: [deploy]
 
     # 5. Installation des dépendances
