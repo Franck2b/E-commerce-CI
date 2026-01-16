@@ -90,12 +90,12 @@ jobs:
       - name: Run Ansible Deployment
         env:
           ANSIBLE_HOST_KEY_CHECKING: 'False'
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
         run: |
           cd ansible
           ansible-playbook -i inventory/production.yml playbooks/deploy.yml \
             --extra-vars "deploy_version=${{ github.ref_name }}" \
-            --extra-vars "ansible_user=${{ secrets.SERVER_USER }}" \
-            --extra-vars "ansible_host=${{ secrets.SERVER_HOST }}" \
             --timeout 60 \
             -vvv
 
