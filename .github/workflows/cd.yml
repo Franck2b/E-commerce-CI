@@ -1,10 +1,12 @@
 name: CD - Continuous Deployment
 
-# Déclencheur : Push ou merge sur main (après validation)
+# Déclencheur : GitFlow (main, release/*, hotfix/*)
 on:
   push:
     branches:
       - main
+      - 'release/**'
+      - 'hotfix/**'
     tags:
       - 'v*.*.*'
 
@@ -18,7 +20,7 @@ jobs:
       url: http://your-server-ip
 
     steps:
-      # 1. Checkout du dépôt
+      # 1. Checkout du code
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -42,6 +44,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
 
       # 6. Installation d'Ansible
       - name: Install Ansible
@@ -49,41 +52,46 @@ jobs:
           python -m pip install --upgrade pip
           pip install ansible
 
-      # 7. Configuration de la clé SSH avec action dédiée
-      - name: Install SSH Key
-        uses: shimataro/ssh-key-action@v2
-        with:
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          known_hosts: unnecessary
-          
-      # 7b. Ajouter le serveur aux known_hosts
-      - name: Adding Known Hosts
-        run: ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
-          
-      # 7c. Test de connexion SSH
-      - name: Test SSH Connection
-        env:
-          SERVER_HOST: ${{ secrets.SERVER_HOST }}
-          SERVER_USER: ${{ secrets.SERVER_USER }}
+      # 7. Configuration SSH simplifiée
+      - name: Setup SSH
         run: |
-          ssh -o StrictHostKeyChecking=no ${SERVER_USER}@${SERVER_HOST} "echo 'SSH Connection OK'"
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          chmod 700 ~/.ssh
+          
+      # 8. Test de connexion SSH
+      - name: Test SSH Connection
+        run: |
+          ssh -o StrictHostKeyChecking=no \
+              -o UserKnownHostsFile=/dev/null \
+              -o ConnectTimeout=10 \
+              ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+              "echo 'SSH Connection OK'"
 
-      # 8. Exécution du playbook Ansible
+      # 9. Exécution du playbook Ansible
       - name: Run Ansible Deployment
         env:
           ANSIBLE_HOST_KEY_CHECKING: 'False'
-          SERVER_HOST: ${{ secrets.SERVER_HOST }}
-          SERVER_USER: ${{ secrets.SERVER_USER }}
         run: |
           cd ansible
           ansible-playbook -i inventory/production.yml playbooks/deploy.yml \
             --extra-vars "deploy_version=${{ github.ref_name }}" \
+            --extra-vars "ansible_user=${{ secrets.SERVER_USER }}" \
+            --extra-vars "ansible_host=${{ secrets.SERVER_HOST }}" \
             -v
 
-      # 9. Notification de succès
+      # 10. Nettoyage de la clé SSH
+      - name: Cleanup SSH Key
+        if: always()
+        run: |
+          rm -f ~/.ssh/id_rsa
+          
+      # 11. Notification de succès
       - name: Deployment Success
         if: success()
         run: |
-          echo "✅ Deployment successful to production!"
+          echo "✅ Déploiement réussi en production!"
           echo "Version: ${{ github.ref_name }}"
           echo "Commit: ${{ github.sha }}"
+          echo "Branche: ${{ github.ref }}"
