@@ -48,10 +48,10 @@
       file:
         path: "{{ deploy_dir }}"
         state: directory
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
         mode: '0755'
-      tags: [setup, deploy]
+      tags: [setup]
 
     # 4. Déploiement du code via Git
     - name: Clone or update repository
@@ -61,7 +61,6 @@
         version: main
         force: yes
         update: yes
-      become: no
       tags: [deploy]
 
     # 5. Installation des dépendances
@@ -69,7 +68,6 @@
       command: npm ci --omit=dev --prefer-offline --no-audit
       args:
         chdir: "{{ deploy_dir }}"
-      become: no
       async: 300
       poll: 5
       tags: [deploy]
@@ -79,7 +77,6 @@
       command: npm run build
       args:
         chdir: "{{ deploy_dir }}"
-      become: no
       environment:
         NODE_ENV: production
       tags: [deploy]
@@ -118,25 +115,23 @@
       command: pm2 startOrReload ecosystem.config.js --update-env
       args:
         chdir: "{{ deploy_dir }}"
-      become: no
       tags: [pm2, restart]
 
     - name: Save PM2 configuration
       command: pm2 save
-      become: no
       tags: [pm2]
 
     - name: Setup PM2 startup script
       shell: env PATH=$PATH:/usr/bin pm2 startup systemd -u {{ ansible_user }} --hp /home/{{ ansible_user }} | tail -1
-      become: yes
       register: pm2_startup_command
       changed_when: false
+      become: yes
       tags: [pm2]
       
     - name: Execute PM2 startup command
       shell: "{{ pm2_startup_command.stdout }}"
-      become: yes
       when: pm2_startup_command.stdout != ""
+      become: yes
       ignore_errors: yes
       tags: [pm2]
 
