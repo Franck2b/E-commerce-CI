@@ -51,24 +51,44 @@ jobs:
           python -m pip install --upgrade pip
           pip install ansible
 
-      # 7. Configuration SSH simplifiée
+      # 7. Configuration SSH
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           chmod 700 ~/.ssh
+      
+      # 8. Diagnostic réseau
+      - name: Network Diagnostic
+        run: |
+          echo "🔍 Diagnostic réseau vers ${{ secrets.SERVER_HOST }}"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "📍 Résolution DNS :"
+          nslookup ${{ secrets.SERVER_HOST }} || host ${{ secrets.SERVER_HOST }} || echo "Pas de résolution DNS (normal pour IP)"
+          echo ""
+          echo "📍 Test ping (ICMP) :"
+          ping -c 3 -W 2 ${{ secrets.SERVER_HOST }} || echo "⚠️ Ping échoué (peut être normal)"
+          echo ""
+          echo "📍 Test connectivité port SSH (22) :"
+          timeout 15 bash -c "nc -zv ${{ secrets.SERVER_HOST }} 22 2>&1" || echo "⚠️ Port 22 non accessible ou timeout"
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           
-      # 8. Test de connexion SSH
+      # 9. Test de connexion SSH avec timeout augmenté
       - name: Test SSH Connection
         run: |
-          ssh -o StrictHostKeyChecking=no \
+          echo "🔐 Test connexion SSH avec timeout 30s..."
+          ssh -v \
+              -o StrictHostKeyChecking=no \
               -o UserKnownHostsFile=/dev/null \
-              -o ConnectTimeout=10 \
+              -o ConnectTimeout=30 \
+              -o ServerAliveInterval=10 \
               ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
-              "echo 'SSH Connection OK'"
+              "echo '✅ SSH Connection OK' && uptime"
 
-      # 9. Exécution du playbook Ansible
+      # 10. Exécution du playbook Ansible
       - name: Run Ansible Deployment
         env:
           ANSIBLE_HOST_KEY_CHECKING: 'False'
@@ -80,13 +100,13 @@ jobs:
             --extra-vars "ansible_host=${{ secrets.SERVER_HOST }}" \
             -v
 
-      # 10. Nettoyage de la clé SSH
+      # 11. Nettoyage de la clé SSH
       - name: Cleanup SSH Key
         if: always()
         run: |
           rm -f ~/.ssh/id_rsa
           
-      # 11. Notification de succès
+      # 12. Notification de succès
       - name: Deployment Success
         if: success()
         run: |
