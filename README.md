@@ -277,20 +277,6 @@ Protégez `main` et `develop` :
 
 ---
 
-## 🎯 Barème d'évaluation
-
-| Critère | Points |
-|---------|--------|
-| GitFlow | 4 pts |
-| CI GitHub Actions | 6 pts |
-| Tests unitaires et d'intégration | 3 pts |
-| CD Stratégie 2 | 3 pts |
-| Présentation et justification | 1 pt |
-| Bonus | 1 pt |
-| **Total** | **18 pts** |
-
----
-
 ## 🎓 Justifications techniques
 
 ### GitFlow
@@ -317,27 +303,3 @@ Protégez `main` et `develop` :
 - **Nginx** : Reverse proxy, SSL/TLS, compression, cache
 
 ---
-
-## 👤 Auteur
-
-**[Votre Nom]**
-- GitHub: [@votre-username](https://github.com/votre-username)
-- Email: votre.email@example.com
-
----
-
-## 🙏 Remerciements
-
-- Design inspiré de [TOLUS](https://www.tolusfashion.com/)
-- Images : [Unsplash](https://unsplash.com/)
-- Stack : Next.js, GitHub Actions, Ansible
-
----
-
-## 📄 Licence
-
-Projet réalisé dans le cadre d'une évaluation académique - EEMI 2025
-
----
-
-**⚠️ Important** : Lisez `COMMENT_REUSSIR_LE_TP.md` pour les instructions complètes !
