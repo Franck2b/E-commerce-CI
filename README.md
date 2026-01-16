@@ -644,38 +644,6 @@ Le design de cette application s'inspire de designs modernes d'e-commerce :
 
 ---
 
-## 📚 Documentation supplémentaire
-
-- **[PRESENTATION_FINALE.md](./PRESENTATION_FINALE.md)** - Guide complet de présentation du projet
-- **Playbooks Ansible** - Documentation dans `ansible/playbooks/`
-- **Workflows GitHub Actions** - Documentation dans `.github/workflows/`
-
----
-
-## 🎓 Contexte académique
-
-**Projet réalisé dans le cadre du cours CI/CD - EEMI**
-
-### Objectifs pédagogiques atteints
-
-- ✅ Mise en place d'une stratégie GitFlow complète
-- ✅ Configuration de pipelines CI/CD avec GitHub Actions
-- ✅ Automatisation du déploiement avec Ansible
-- ✅ Tests automatisés (unitaires et d'intégration)
-- ✅ Déploiement sur infrastructure cloud (GCP)
-- ✅ Documentation technique complète
-
-### Compétences acquises
-
-- **DevOps** : CI/CD, Infrastructure as Code
-- **Cloud** : Google Cloud Platform
-- **Automatisation** : Ansible, GitHub Actions
-- **Tests** : Jest, React Testing Library
-- **Git** : GitFlow, branches, PR, tags
-- **Frontend** : Next.js, React, TypeScript
-
----
-
 ## 👨‍💻 Auteur
 
 **Franck**
@@ -683,25 +651,3 @@ Le design de cette application s'inspire de designs modernes d'e-commerce :
 - Projet : [E-commerce-CI](https://github.com/Franck2b/E-commerce-CI)
 
 ---
-
-## 📄 Licence
-
-Ce projet est un projet académique réalisé dans le cadre de la formation EEMI.
-
----
-
-## 🙏 Remerciements
-
-- **EEMI** pour l'enseignement de qualité
-- **Next.js** pour le framework
-- **GitHub** pour les outils CI/CD
-- **Google Cloud Platform** pour l'hébergement
-- **Dribbble** pour l'inspiration design
-
----
-
-**Dernière mise à jour :** Janvier 2026
-
-**Version :** 1.0.0
-
-**Status :** ✅ En production
