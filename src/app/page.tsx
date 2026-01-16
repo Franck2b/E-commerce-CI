@@ -1,3 +1,8 @@
+/**
+ * Page d'accueil - TOLUS E-commerce
+ * Hero section, produits vedettes, catégories MAN/WOMAN/KIDS
+ */
+
 import Link from 'next/link';
 import ProductCard from '@/components/ProductCard';
 import { products } from '@/data/products';
