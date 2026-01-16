@@ -1,0 +1,45 @@
+name: Release - Create Release Branch
+
+# Workflow pour créer une release branch selon GitFlow
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 1.0.0)'
+        required: true
+        type: string
+
+jobs:
+  create-release:
+    name: Create Release Branch
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout develop
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+          fetch-depth: 0
+
+      - name: Setup Git
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+      - name: Create release branch
+        run: |
+          git checkout -b release/${{ inputs.version }}
+          git push origin release/${{ inputs.version }}
+
+      - name: Create Pull Request to main
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'Release v${{ inputs.version }}',
+              head: 'release/${{ inputs.version }}',
+              base: 'main',
+              body: `## Release v${{ inputs.version }}\n\nThis PR merges the release branch into main.\n\n### Checklist\n- [ ] Version bumped\n- [ ] Changelog updated\n- [ ] Tests passing\n- [ ] Ready for production`
+            });
