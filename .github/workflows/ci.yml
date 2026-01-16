@@ -1,0 +1,57 @@
+name: CI - Continuous Integration
+
+# Déclencheurs : PR vers develop ou main
+on:
+  pull_request:
+    branches:
+      - develop
+      - main
+  push:
+    branches:
+      - develop
+
+jobs:
+  continuous-integration:
+    name: CI Pipeline
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout du dépôt
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # 3. Installation des dépendances
+      - name: Install dependencies
+        run: npm ci
+
+      # 4. Lint
+      - name: Run ESLint
+        run: npm run lint
+
+      # 5. Tests unitaires
+      - name: Run unit tests
+        run: npm run test -- --passWithNoTests
+
+      # 6. Tests d'intégration
+      - name: Run integration tests
+        run: npm run test:integration -- --passWithNoTests
+
+      # 7. Build
+      - name: Build application
+        run: npm run build
+
+      # 8. Upload build artifacts (optionnel, utile pour debug)
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: build-output
+          path: .next/
+          retention-days: 7
