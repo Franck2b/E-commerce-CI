@@ -1,0 +1,101 @@
+.header {
+  position: sticky;
+  top: 0;
+  background: white;
+  z-index: 100;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.topBanner {
+  background: black;
+  color: white;
+  text-align: center;
+  padding: 8px 20px;
+  font-size: 14px;
+}
+
+.nav {
+  padding: 20px 0;
+}
+
+.navContent {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 40px;
+}
+
+.navLinks {
+  display: flex;
+  list-style: none;
+  gap: 30px;
+  flex: 1;
+}
+
+.navLinks a {
+  color: #333;
+  font-size: 14px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: color 0.3s;
+}
+
+.navLinks a:hover {
+  color: #666;
+}
+
+.logo {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.logo h1 {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 4px;
+}
+
+.navIcons {
+  display: flex;
+  gap: 20px;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.navIcons button {
+  font-size: 18px;
+  padding: 8px;
+  transition: opacity 0.3s;
+}
+
+.navIcons button:hover {
+  opacity: 0.7;
+}
+
+@media (max-width: 968px) {
+  .navLinks {
+    display: none;
+  }
+  
+  .logo {
+    position: static;
+    transform: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .topBanner {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+  
+  .logo h1 {
+    font-size: 24px;
+  }
+  
+  .navIcons {
+    gap: 15px;
+  }
+}

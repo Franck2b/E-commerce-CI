@@ -1,0 +1,33 @@
+---
+# Playbook de rollback en cas de problème
+
+- name: Rollback TOLUS E-commerce Application
+  hosts: webservers
+  become: yes
+  
+  tasks:
+    - name: Stop application
+      command: pm2 stop {{ app_name }}
+      become_user: "{{ app_user }}"
+      ignore_errors: yes
+      tags: [rollback]
+
+    - name: Restore previous version
+      # Implémentez votre logique de rollback ici
+      # Par exemple, restaurer depuis un backup ou une version précédente
+      debug:
+        msg: "Rollback to previous version"
+      tags: [rollback]
+
+    - name: Restart application
+      command: pm2 restart {{ app_name }}
+      become_user: "{{ app_user }}"
+      tags: [rollback]
+
+    - name: Verify rollback
+      uri:
+        url: "http://localhost:{{ app_port }}"
+        status_code: 200
+      retries: 3
+      delay: 2
+      tags: [verify]
