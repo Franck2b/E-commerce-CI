@@ -1,19 +1,15 @@
 ---
-# Inventaire de production
-# Remplacez les valeurs par vos informations serveur réelles
-
 all:
   children:
     webservers:
       hosts:
         production:
-          ansible_host: "{{ lookup('env', 'SERVER_HOST') | default('your-server-ip') }}"
-          ansible_user: "{{ lookup('env', 'SERVER_USER') | default('ubuntu') }}"
+          ansible_host: "{{ ansible_host }}"
+          ansible_user: "{{ ansible_user }}"
           ansible_port: 22
           ansible_python_interpreter: /usr/bin/python3
           
   vars:
-    # Variables globales
     app_name: tolus-ecommerce
     app_port: 3000
     app_user: www-data

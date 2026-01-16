@@ -1,128 +1,67 @@
 ---
-# Playbook de déploiement principal - Version simplifiée et robuste
-# Stratégie : Déploiement complet de l'application Next.js
-
 - name: Deploy TOLUS E-commerce Application
   hosts: webservers
   become: yes
   
-  vars:
-    deploy_version: "{{ deploy_version | default('latest') }}"
-    
   tasks:
-    # 1. Préparation de l'environnement serveur
     - name: Update apt cache
       apt:
         update_cache: yes
         cache_valid_time: 3600
-      tags: [setup]
 
-    - name: Install required system packages
+    - name: Install system packages
       apt:
         name:
           - git
           - curl
           - build-essential
           - nginx
-          - rsync
-          - acl
         state: present
-      tags: [setup]
 
-    # 2. Installation de Node.js
     - name: Check if Node.js is installed
       command: node --version
       register: node_check
       ignore_errors: yes
       changed_when: false
-      tags: [nodejs]
 
-    - name: Install Node.js via NodeSource
+    - name: Install Node.js
       shell: |
         curl -fsSL https://deb.nodesource.com/setup_{{ node_version }}.x | bash -
         apt-get install -y nodejs
       when: node_check.failed
-      tags: [nodejs]
-
-    # 3. Création de l'utilisateur avec home directory
-    - name: Create application user with home directory
-      user:
-        name: "{{ app_user }}"
-        system: yes
-        create_home: yes
-        home: /var/www
-        shell: /bin/bash
-      tags: [setup]
 
     - name: Create deployment directory
       file:
         path: "{{ deploy_dir }}"
         state: directory
-        owner: "{{ app_user }}"
-        group: "{{ app_group }}"
         mode: '0755'
-      tags: [setup]
-
-    # 4. Déploiement du code via Git
-    - name: Remove old deployment directory content
-      file:
-        path: "{{ deploy_dir }}"
-        state: absent
-      tags: [deploy]
-
-    - name: Recreate deployment directory
-      file:
-        path: "{{ deploy_dir }}"
-        state: directory
-        owner: "{{ app_user }}"
-        group: "{{ app_group }}"
-        mode: '0755'
-      tags: [deploy]
 
     - name: Clone repository
       git:
         repo: 'https://github.com/Franck2b/E-commerce-CI.git'
         dest: "{{ deploy_dir }}"
         version: main
-      tags: [deploy]
+        force: yes
 
-    # 5. Installation des dépendances (en root, plus simple)
-    - name: Install Node.js dependencies
-      command: npm ci --omit=dev --prefer-offline --no-audit
+    - name: Install dependencies
+      command: npm ci --omit=dev
       args:
         chdir: "{{ deploy_dir }}"
-      environment:
-        HOME: /root
-      tags: [deploy]
 
-    # 6. Build de l'application
-    - name: Build Next.js application
+    - name: Build application
       command: npm run build
       args:
         chdir: "{{ deploy_dir }}"
       environment:
         NODE_ENV: production
-        HOME: /root
-      tags: [deploy]
 
-    # 7. Fixer les permissions après build
-    - name: Set correct ownership for all files
-      file:
-        path: "{{ deploy_dir }}"
-        owner: "{{ app_user }}"
-        group: "{{ app_group }}"
-        recurse: yes
-      tags: [deploy]
-
-    # 8. Configuration de PM2 pour la gestion du processus
-    - name: Install PM2 globally
+    - name: Install PM2
       npm:
         name: pm2
         global: yes
         state: present
-      tags: [pm2]
 
-    - name: Create PM2 ecosystem file
+    - name: Create PM2 config
       copy:
         content: |
           module.exports = {
@@ -131,132 +70,62 @@
               script: 'npm',
               args: 'start',
               cwd: '{{ deploy_dir }}',
-              instances: 2,
-              exec_mode: 'cluster',
+              instances: 1,
               env: {
                 NODE_ENV: 'production',
                 PORT: {{ app_port }}
-              },
-              error_file: '/var/log/pm2/{{ app_name }}-error.log',
-              out_file: '/var/log/pm2/{{ app_name }}-out.log'
+              }
             }]
           }
         dest: "{{ deploy_dir }}/ecosystem.config.js"
-        owner: "{{ app_user }}"
-        group: "{{ app_group }}"
-      tags: [pm2]
 
-    - name: Create PM2 log directory
-      file:
-        path: /var/log/pm2
-        state: directory
-        owner: "{{ app_user }}"
-        group: "{{ app_group }}"
-        mode: '0755'
-      tags: [pm2]
-
-    - name: Stop PM2 if running
-      command: pm2 delete {{ app_name }}
-      ignore_errors: yes
-      tags: [pm2, restart]
-
-    - name: Start application with PM2 as root
-      command: pm2 start ecosystem.config.js --update-env
-      args:
-        chdir: "{{ deploy_dir }}"
-      environment:
-        HOME: /root
-      tags: [pm2, restart]
-
-    - name: Save PM2 configuration
-      command: pm2 save
-      environment:
-        HOME: /root
-      tags: [pm2]
-
-    - name: Setup PM2 startup script
+    - name: Restart application with PM2
       shell: |
-        pm2 startup systemd -u root --hp /root
+        pm2 delete {{ app_name }} || true
+        pm2 start {{ deploy_dir }}/ecosystem.config.js
         pm2 save
       environment:
         HOME: /root
-      tags: [pm2]
 
-    # 9. Configuration de Nginx
-    - name: Configure Nginx reverse proxy
+    - name: Configure Nginx
       copy:
         content: |
           server {
               listen 80;
               server_name _;
-
               location / {
                   proxy_pass http://localhost:{{ app_port }};
                   proxy_http_version 1.1;
                   proxy_set_header Upgrade $http_upgrade;
                   proxy_set_header Connection 'upgrade';
                   proxy_set_header Host $host;
-                  proxy_set_header X-Real-IP $remote_addr;
-                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                  proxy_set_header X-Forwarded-Proto $scheme;
                   proxy_cache_bypass $http_upgrade;
               }
           }
         dest: /etc/nginx/sites-available/{{ app_name }}
-      tags: [nginx]
 
     - name: Enable Nginx site
       file:
         src: /etc/nginx/sites-available/{{ app_name }}
         dest: /etc/nginx/sites-enabled/{{ app_name }}
         state: link
-      notify: Reload Nginx
-      tags: [nginx]
 
-    - name: Remove default Nginx site
+    - name: Remove default site
       file:
         path: /etc/nginx/sites-enabled/default
         state: absent
-      notify: Reload Nginx
-      tags: [nginx]
 
-    - name: Test Nginx configuration
-      command: nginx -t
-      tags: [nginx]
-
-    - name: Reload Nginx
+    - name: Restart Nginx
       service:
         name: nginx
-        state: reloaded
-      tags: [nginx]
+        state: restarted
 
-    # 10. Vérification du déploiement
-    - name: Wait for application to start
+    - name: Wait for app
       wait_for:
         port: "{{ app_port }}"
-        delay: 5
-        timeout: 60
-      tags: [verify]
+        delay: 3
+        timeout: 30
 
-    - name: Check application health
-      uri:
-        url: "http://localhost:{{ app_port }}"
-        status_code: 200
-      retries: 5
-      delay: 3
-      tags: [verify]
-
-    - name: Display deployment info
+    - name: Success message
       debug:
-        msg: |
-          ✅ Déploiement réussi !
-          📦 Version: {{ deploy_version }}
-          🌐 Application accessible sur le port {{ app_port }}
-          📁 Dossier: {{ deploy_dir }}
-      tags: [verify]
-
-  handlers:
-    - name: Reload Nginx
-      service:
-        name: nginx
-        state: reloaded
+        msg: "✅ Déploiement terminé avec succès !"
