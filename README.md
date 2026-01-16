@@ -2,10 +2,6 @@
 
 > Application e-commerce Next.js avec chaîne CI/CD complète (GitHub Actions + Ansible)
 
-[![CI Status](https://github.com/votre-username/E-commerce-CI/workflows/CI/badge.svg)](https://github.com/votre-username/E-commerce-CI/actions)
-
----
-
 ## 📋 À propos
 
 Application e-commerce frontend développée avec **Next.js 14**, mettant en place une chaîne **CI/CD complète** orchestrée avec **GitHub Actions** et **Ansible** selon le modèle **GitFlow**.
