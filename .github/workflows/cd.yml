@@ -49,18 +49,18 @@ jobs:
           python -m pip install --upgrade pip
           pip install ansible
 
-      # 7. Configuration de la clé SSH
-      - name: Setup SSH Key
-        run: |
-          mkdir -p ~/.ssh
-          cat > ~/.ssh/id_rsa << 'EOF'
-          ${{ secrets.SSH_PRIVATE_KEY }}
-          EOF
-          chmod 600 ~/.ssh/id_rsa
-          chmod 700 ~/.ssh
-          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+      # 7. Configuration de la clé SSH avec action dédiée
+      - name: Install SSH Key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          known_hosts: unnecessary
           
-      # 7b. Test de connexion SSH
+      # 7b. Ajouter le serveur aux known_hosts
+      - name: Adding Known Hosts
+        run: ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+          
+      # 7c. Test de connexion SSH
       - name: Test SSH Connection
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
