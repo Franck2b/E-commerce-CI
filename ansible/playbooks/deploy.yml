@@ -103,6 +103,14 @@
       tags: [deploy]
 
     # 6. Build de l'application
+    - name: Ensure all files belong to app_user
+      file:
+        path: "{{ deploy_dir }}"
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        recurse: yes
+      tags: [deploy]
+
     - name: Build Next.js application
       command: npm run build
       args:
