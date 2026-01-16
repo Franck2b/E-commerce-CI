@@ -30,12 +30,12 @@
         apt-get install -y nodejs
       when: node_check.failed
 
-    - name: Remove old deployment directory completely
+    - name: Remove old deployment directory
       file:
         path: "{{ deploy_dir }}"
         state: absent
 
-    - name: Create fresh deployment directory
+    - name: Create deployment directory
       file:
         path: "{{ deploy_dir }}"
         state: directory
@@ -48,8 +48,8 @@
         version: main
         force: yes
 
-    - name: Install dependencies
-      command: npm ci --omit=dev
+    - name: Install ALL dependencies (including dev for build)
+      command: npm ci
       args:
         chdir: "{{ deploy_dir }}"
       environment:
@@ -61,6 +61,13 @@
         chdir: "{{ deploy_dir }}"
       environment:
         NODE_ENV: production
+        HOME: /root
+
+    - name: Remove dev dependencies after build
+      command: npm prune --omit=dev
+      args:
+        chdir: "{{ deploy_dir }}"
+      environment:
         HOME: /root
 
     - name: Install PM2
@@ -150,7 +157,14 @@
       wait_for:
         port: "{{ app_port }}"
         delay: 5
-        timeout: 30
+        timeout: 60
+
+    - name: Check application health
+      uri:
+        url: "http://localhost:{{ app_port }}"
+        status_code: 200
+      retries: 5
+      delay: 3
 
     - name: Success message
       debug:
