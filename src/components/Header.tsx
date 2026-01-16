@@ -1,3 +1,8 @@
+/**
+ * Composant Header - Navigation principale de l'application TOLUS
+ * Inclut : Logo, menu de navigation, icônes utilisateur
+ */
+
 import Link from 'next/link';
 import styles from './Header.module.css';
 
