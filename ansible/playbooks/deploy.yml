@@ -60,28 +60,14 @@
         mode: '0755'
       tags: [setup]
 
-    # 4. Déploiement du code  
-    - name: Copy application files
-      synchronize:
-        src: "{{ playbook_dir }}/../../"
-        dest: "{{ deploy_dir }}/"
-        delete: yes
-        recursive: yes
-        rsync_opts:
-          - "--exclude=node_modules"
-          - "--exclude=.next"
-          - "--exclude=.git"
-          - "--exclude=ansible"
-      delegate_to: localhost
-      become: no
-      tags: [deploy]
-
-    - name: Fix deployment directory ownership
-      file:
-        path: "{{ deploy_dir }}"
-        owner: "{{ app_user }}"
-        group: "{{ app_group }}"
-        recurse: yes
+    # 4. Déploiement du code via Git
+    - name: Clone or update repository
+      git:
+        repo: 'https://github.com/Franck2b/E-commerce-CI.git'
+        dest: "{{ deploy_dir }}"
+        version: main
+        force: yes
+      become_user: "{{ app_user }}"
       tags: [deploy]
 
     # 5. Installation des dépendances
